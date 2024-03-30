@@ -1,4 +1,5 @@
 import logging
+import sys
 from typing import List
 
 from fastapi import APIRouter
@@ -10,9 +11,20 @@ from example.schemas import ListExamplePydantic, CreateExamplePydantic, Status
 example_model_router = APIRouter(prefix='/examples', tags=['examples'])
 
 
+example_model_logger = logging.Logger(name='example_logger')
+handler = logging.StreamHandler(sys.stdout)
+formatter = logging.Formatter(
+    fmt="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+handler.setFormatter(formatter)
+example_model_logger.addHandler(handler)
+example_model_logger.setLevel(logging.DEBUG)
+
+
 @example_model_router.get('/', response_model=List[ListExamplePydantic])
 async def get_examples():
-    return await ExampleModel.all().select_related('category')
+    return await ExampleModel.all()
 
 
 @example_model_router.get('/{example_id}', response_model=ListExamplePydantic)
