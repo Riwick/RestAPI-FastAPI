@@ -1,14 +1,14 @@
 from fastapi import FastAPI, APIRouter
 from tortoise.contrib.fastapi import register_tortoise
 
-from example.router import example_model_router, category_router
+from example.router import example_model_router
+from categories.router import category_router
 
 app = FastAPI(title='RestAPI-FastAPI')
 
-main_router = APIRouter(prefix='/api/v1', tags=['api-v1'])
+main_router = APIRouter(prefix='/api/v1', tags=[])
 
 main_router.include_router(example_model_router)
-
 main_router.include_router(category_router)
 
 
@@ -26,3 +26,6 @@ register_tortoise(
     generate_schemas=True,
     add_exception_handlers=True,
 )
+
+
+
