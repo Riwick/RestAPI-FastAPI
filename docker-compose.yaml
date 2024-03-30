@@ -1,0 +1,11 @@
+version: "3.7"
+services:
+  database:
+    image: postgres:16.1-alpine
+    container_name: RestAPI-FastAPI-DB
+    ports:
+      - "10001:5432"
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
