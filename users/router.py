@@ -1,6 +1,7 @@
+import hashlib
 from typing import List
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer
 from starlette import status
 from starlette.exceptions import HTTPException
@@ -9,14 +10,17 @@ from examples.schemas import Status
 from users.auth import create_access_token, verify_token, pwd_context
 from users.schemas import UserCreateSchema, UserListSchema, UserUpdateSchema, UserLoginSchema
 from users.models import User
+from users.send_email import send_email
 
 users_router = APIRouter(prefix='/users', tags=['users'])
 
 
 @users_router.post("/register", response_model=UserListSchema)
-async def register(data: UserCreateSchema):
-    user = User(username=data.username, email=data.email, password=pwd_context.hash(data.password))
+async def register(data: UserCreateSchema, background_tasks: BackgroundTasks):
+    user = User(username=data.username, email=data.email, password=pwd_context.hash(data.password),
+                confirm_code=hashlib.sha256(data.email.encode()).hexdigest()[:6])
     await user.save()
+    background_tasks.add_task(send_email, data.email, user.confirm_code)
     if user:
         return user
     else:
@@ -24,6 +28,18 @@ async def register(data: UserCreateSchema):
 
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+
+
+@users_router.post('/confirm-email/{confirm_code}', response_model=UserListSchema)
+async def confirm_email(confirm_code: str):
+    user = await User.get(confirm_code=confirm_code)
+    if user:
+        user.confirmed = True
+        await user.save()
+        return user
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail='User not found or confirmation code is invalid')
 
 
 @users_router.post("/login")

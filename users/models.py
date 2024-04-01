@@ -10,5 +10,8 @@ class User(models.Model):
     date_joined = fields.DatetimeField(auto_now_add=True)
     is_active = fields.BooleanField(default=True)
 
+    confirm_code = fields.TextField()
+    confirmed = fields.BooleanField(default=False)
+
     class Meta:
         table = 'User'
