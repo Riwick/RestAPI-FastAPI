@@ -2,12 +2,12 @@ import logging
 import sys
 from typing import List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query
 from starlette.exceptions import HTTPException
 
 from categories.models import Category
 from categories.schemas import ListCategoryPydantic, CreateCategoryPydantic
-from example.schemas import Status
+from examples.schemas import Status
 
 category_router = APIRouter(prefix='/categories', tags=['categories'])
 
@@ -24,8 +24,8 @@ category_logger.setLevel(logging.DEBUG)
 
 
 @category_router.get('/', response_model=List[ListCategoryPydantic])
-async def get_categories():
-    return await Category.all()
+async def get_categories(skip: int = Query(0), limit: int = Query(10)):
+    return await Category.filter().offset(skip).limit(limit).all()
 
 
 @category_router.get('/{category_id}', response_model=ListCategoryPydantic)
@@ -37,7 +37,7 @@ async def get_category(category_id: int):
 @category_router.post('/', response_model=ListCategoryPydantic)
 async def create_category(data: CreateCategoryPydantic):
     cat_obj = await Category.create(**data.model_dump())
-    return await cat_obj
+    return cat_obj
 
 
 @category_router.put('/{category_id}', response_model=ListCategoryPydantic)

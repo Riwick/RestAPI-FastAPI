@@ -2,11 +2,11 @@ import logging
 import sys
 from typing import List
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Query, Depends
 from starlette.exceptions import HTTPException
 
-from example.models import ExampleModel
-from example.schemas import ListExamplePydantic, CreateExamplePydantic, Status
+from examples.models import ExampleModel
+from examples.schemas import ListExamplePydantic, CreateExamplePydantic, Status
 
 example_model_router = APIRouter(prefix='/examples', tags=['examples'])
 
@@ -23,8 +23,8 @@ example_model_logger.setLevel(logging.DEBUG)
 
 
 @example_model_router.get('/', response_model=List[ListExamplePydantic])
-async def get_examples():
-    return await ExampleModel.all()
+async def get_examples(skip: int = Query(0), limit: int = Query(10)):
+    return await ExampleModel.filter().offset(skip).limit(limit).all()
 
 
 @example_model_router.get('/{example_id}', response_model=ListExamplePydantic)
@@ -42,7 +42,7 @@ async def create_example(data: CreateExamplePydantic):
 @example_model_router.put('/{example_id}', response_model=ListExamplePydantic)
 async def update_example(example_id: int, data: CreateExamplePydantic):
     await ExampleModel.filter(id=example_id).update(**data.model_dump())
-    return await ExampleModel.get(id=example_id).select_related('category')
+    return ExampleModel.get(id=example_id).select_related('category')
 
 
 @example_model_router.delete('/{example_id}', response_model=ListExamplePydantic)
