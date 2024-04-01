@@ -36,35 +36,38 @@ async def home_page():
 
 app.include_router(main_router)
 
-register_tortoise(
-    app=app,
-    config={
-        'connections': {
-            # Dict format for connection
-            'default': {
-                'engine': 'tortoise.backends.asyncpg',
-                'credentials': {
-                    'host': 'localhost',
-                    'port': '10000',
-                    'user': 'postgres',
-                    'password': 'postgres',
-                    'database': 'postgres',
-                }
+try:
+    register_tortoise(
+        app=app,
+        config={
+            'connections': {
+                # Dict format for connection
+                'default': {
+                    'engine': 'tortoise.backends.asyncpg',
+                    'credentials': {
+                        'host': 'localhost',
+                        'port': '10000',
+                        'user': 'postgres',
+                        'password': 'postgres',
+                        'database': 'postgres',
+                    }
+                },
+                # Using a DB_URL string
+                'default': 'postgres://postgres:postgres@localhost:10001/postgres'
             },
-            # Using a DB_URL string
-            'default': 'postgres://postgres:postgres@localhost:10001/postgres'
-        },
-        'apps': {
-            'models': {
-                'models': ['examples.models', 'categories.models', 'users.models'],
-                # If no default_connection specified, defaults to 'default'
-                'default_connection': 'default',
+            'apps': {
+                'models': {
+                    'models': ['examples.models', 'categories.models', 'users.models'],
+                    # If no default_connection specified, defaults to 'default'
+                    'default_connection': 'default',
+                }
             }
-        }
-    },
-    generate_schemas=True,
-    add_exception_handlers=True,
-)
+        },
+        generate_schemas=True,
+        add_exception_handlers=True,
+    )
+except Exception as e:
+    logging.log(level=logging.CRITICAL, msg=e, exc_info=True)
 
 if __name__ == '__main__':
     uvicorn.run(app='main:app', host='localhost', port=10000, reload=True)

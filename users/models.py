@@ -10,5 +10,5 @@ class User(models.Model):
     date_joined = fields.DatetimeField(auto_now_add=True)
     is_active = fields.BooleanField(default=True)
 
-    def verify_password(self, password: str) -> bool:
-        return password == self.password
+    class Meta:
+        table = 'User'
