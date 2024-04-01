@@ -1,14 +1,12 @@
-import logging
-import sys
 from typing import List
 
 from fastapi import APIRouter, Query, Depends
 from starlette import status
 from starlette.exceptions import HTTPException
-from tortoise.expressions import Q
 
 from examples.models import ExampleModel
 from examples.schemas import ListExamplePydantic, CreateExamplePydantic, Status
+from examples.logger import example_model_logger
 from users.auth import verify_token
 from users.models import User
 from users.router import oauth2_scheme
@@ -16,21 +14,25 @@ from users.router import oauth2_scheme
 example_model_router = APIRouter(prefix='/examples', tags=['examples'])
 
 
-example_model_logger = logging.Logger(name='example_logger')
-handler = logging.StreamHandler(sys.stdout)
-formatter = logging.Formatter(
-    fmt="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-handler.setFormatter(formatter)
-example_model_logger.addHandler(handler)
-example_model_logger.setLevel(logging.DEBUG)
-
-
 @example_model_router.get('/', response_model=List[ListExamplePydantic])
 async def get_examples(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1),
-                       sort_by: str = Query('id')):
-    return await ExampleModel.filter().offset(skip).limit(limit).all().order_by(sort_by)
+                       order_by: str = Query('id'),
+                       title: str = Query(None), price: float = Query(None, ge=1),
+                       category_id: int = Query(None, ge=1), example_id: int = Query(None, ge=1)):
+    filters = {}
+    if title:
+        filters['title'] = title
+    if price:
+        filters['price'] = price
+    if category_id:
+        filters['category'] = category_id
+    if example_id:
+        filters['id'] = example_id
+
+    if filters:
+        return await ExampleModel.filter(**filters).offset(skip).limit(limit).all().order_by(order_by)
+
+    return await ExampleModel.filter().offset(skip).limit(limit).all().order_by(order_by)
 
 
 @example_model_router.get('/{example_id}', response_model=ListExamplePydantic)

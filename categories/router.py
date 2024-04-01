@@ -1,5 +1,3 @@
-import logging
-import sys
 from typing import List
 
 from fastapi import APIRouter, Query, Depends
@@ -16,21 +14,20 @@ from users.router import oauth2_scheme
 category_router = APIRouter(prefix='/categories', tags=['categories'])
 
 
-category_logger = logging.Logger(name='example_logger')
-handler = logging.StreamHandler(sys.stdout)
-formatter = logging.Formatter(
-    fmt="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-handler.setFormatter(formatter)
-category_logger.addHandler(handler)
-category_logger.setLevel(logging.DEBUG)
-
-
 @category_router.get('/', response_model=List[ListCategoryPydantic])
 async def get_categories(skip: int = Query(0), limit: int = Query(10),
-                         sort_by: str = Query('id')):
-    return await Category.filter().offset(skip).limit(limit).all().order_by(sort_by)
+                         order_by: str = Query('id'),
+                         title: str = Query(None), cat_id: int = Query(None)):
+    filters = {}
+    if title:
+        filters['title'] = title
+    if cat_id:
+        filters['id'] = cat_id
+
+    if filters:
+        return await Category.filter(**filters).offset(skip).limit(limit).all().order_by(order_by)
+
+    return await Category.filter().offset(skip).limit(limit).all().order_by(order_by)
 
 
 @category_router.get('/{category_id}', response_model=ListCategoryPydantic)
