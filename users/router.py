@@ -62,7 +62,7 @@ async def get_profile(token: str = Depends(oauth2_scheme)):
 
 
 @users_router.get('/', response_model=List[UserListSchema])
-async def get_users(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1),
+async def get_users(offset: int = Query(0, ge=0), limit: int = Query(10, ge=1),
                     order_by: str = Query('id'),
                     username: str = Query(None), email: str = Query(None), user_id: int = Query(None)):
     filters = {}
@@ -74,9 +74,9 @@ async def get_users(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1),
         filters['id'] = user_id
 
     if filters:
-        return await User.filter(**filters).offset(skip).limit(limit).all().order_by(order_by)
+        return await User.filter(**filters).offset(offset).limit(limit).all().order_by(order_by)
 
-    return await User.filter().offset(skip).limit(limit).all().order_by(order_by)
+    return await User.filter().offset(offset).limit(limit).all().order_by(order_by)
 
 
 @users_router.get('/{user_id}', response_model=UserListSchema)

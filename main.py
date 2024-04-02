@@ -1,5 +1,4 @@
 import logging
-from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, APIRouter
@@ -12,13 +11,12 @@ from users.router import users_router
 
 fmt = logging.Formatter(
     fmt="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+    datefmt="%Y-%m-%d %H:%M:%S"
 )
 sh = logging.StreamHandler()
-sh.setLevel(logging.DEBUG)
 sh.setFormatter(fmt)
 
-logger_tortoise = logging.getLogger("tortoise")
+logger_tortoise = logging.getLogger("tortoise.db_client")
 logger_tortoise.setLevel(logging.DEBUG)
 logger_tortoise.addHandler(sh)
 
@@ -39,38 +37,34 @@ async def home_page():
 
 app.include_router(main_router)
 
-try:
-    register_tortoise(
-        app=app,
-        config={
-            'connections': {
-                # Dict format for connection
-                'default': {
-                    'engine': 'tortoise.backends.asyncpg',
-                    'credentials': {
-                        'host': 'localhost',
-                        'port': '10000',
-                        'user': 'postgres',
-                        'password': 'postgres',
-                        'database': 'postgres',
-                    }
-                },
-                # Using a DB_URL string
-                'default': 'postgres://postgres:postgres@localhost:10001/postgres'
-            },
-            'apps': {
-                'models': {
-                    'models': ['examples.models', 'categories.models', 'users.models'],
-                    # If no default_connection specified, defaults to 'default'
-                    'default_connection': 'default',
+
+register_tortoise(
+    app=app,
+    config={
+        'connections': {
+            'default': {
+                'engine': 'tortoise.backends.asyncpg',
+                'credentials': {
+                    'host': 'localhost',
+                    'port': '10000',
+                    'user': 'postgres',
+                    'password': 'postgres',
+                    'database': 'postgres',
                 }
-            }
+            },
+            'default': 'postgres://postgres:postgres@localhost:10001/postgres'
         },
-        generate_schemas=True,
-        add_exception_handlers=True,
-    )
-except Exception as e:
-    logging.log(level=logging.CRITICAL, msg=e, exc_info=True)
+        'apps': {
+            'models': {
+                'models': ['examples.models', 'categories.models', 'users.models'],
+                'default_connection': 'default',
+            }
+        }
+    },
+    generate_schemas=True,
+    add_exception_handlers=True,
+)
+
 
 if __name__ == '__main__':
     uvicorn.run(app='main:app', host='localhost', port=10000, reload=True)
