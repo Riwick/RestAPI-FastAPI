@@ -1,12 +1,15 @@
+import json
 from typing import List
 
 from fastapi import APIRouter, Query, Depends
+
 from starlette import status
 from starlette.exceptions import HTTPException
 
 from examples.models import ExampleModel
 from examples.schemas import ListExamplePydantic, CreateExamplePydantic, Status
-from examples.logger import example_model_logger
+from examples.cache import cache
+
 from users.auth import verify_token
 from users.models import User
 from users.router import oauth2_scheme
@@ -14,7 +17,7 @@ from users.router import oauth2_scheme
 example_model_router = APIRouter(prefix='/examples', tags=['examples'])
 
 
-@example_model_router.get('/', response_model=List[ListExamplePydantic])
+@example_model_router.get('/')
 async def get_examples(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1),
                        order_by: str = Query('id'),
                        title: str = Query(None), price: float = Query(None, ge=1),
@@ -28,17 +31,26 @@ async def get_examples(skip: int = Query(0, ge=0), limit: int = Query(10, ge=1),
         filters['category'] = category_id
     if example_id:
         filters['id'] = example_id
-
     if filters:
-        return await ExampleModel.filter(**filters).offset(skip).limit(limit).all().order_by(order_by)
-
-    return await ExampleModel.filter().offset(skip).limit(limit).all().order_by(order_by)
+        examples = await ExampleModel.filter(**filters).offset(skip).limit(limit).all().order_by(order_by)
+    else:
+        examples = await ExampleModel.filter().offset(skip).limit(limit).all().order_by(order_by)
+    return examples
 
 
 @example_model_router.get('/{example_id}', response_model=ListExamplePydantic)
 async def get_example(example_id: int):
-    example_obj = await ExampleModel.get(id=example_id)
-    return example_obj
+    cached_item = await cache.get(f'example_{example_id}')
+    if cached_item:
+        return cached_item
+
+    example_obj = ExampleModel.filter(id=example_id).first()
+    example_obj = await example_obj.values()
+    if example_obj:
+        await cache.set(f'example_{example_id}', example_obj, ttl=60)
+        return example_obj
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Example not found')
 
 
 @example_model_router.post('/', response_model=ListExamplePydantic)
@@ -57,8 +69,11 @@ async def update_example(example_id: int, data: CreateExamplePydantic, token: st
     payload = verify_token(token)
     user = await User.get(username=payload.get('sub'))
     if user.is_superuser:
-        await ExampleModel.filter(id=example_id).update(**data.model_dump())
-        return ExampleModel.get(id=example_id)
+        example_obj = await ExampleModel.filter(id=example_id).update(**data.model_dump())
+        if example_obj:
+            example_obj = await ExampleModel.filter(id=example_id).first().values()
+            await cache.set(f'example_{example_id}', example_obj, ttl=60)
+            return example_obj
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='You have not enough permissions')
 
@@ -68,6 +83,9 @@ async def delete_example(example_id: int, token: str = Depends(oauth2_scheme)):
     payload = verify_token(token)
     user = await User.get(username=payload.get('sub'))
     if user.is_superuser:
+        cached_example = cache.get(f'example_{example_id}')
+        if cached_example:
+            cache.delete(f'example_{example_id}')
         deleted_count = await ExampleModel.filter(id=example_id).delete()
         if not deleted_count:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Example {example_id} not found')

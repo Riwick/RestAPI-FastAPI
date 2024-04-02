@@ -1,4 +1,5 @@
 import logging
+from contextlib import asynccontextmanager
 
 import uvicorn
 from fastapi import FastAPI, APIRouter
@@ -7,6 +8,7 @@ from tortoise.contrib.fastapi import register_tortoise
 from examples.router import example_model_router
 from categories.router import category_router
 from users.router import users_router
+
 
 fmt = logging.Formatter(
     fmt="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
@@ -19,6 +21,7 @@ sh.setFormatter(fmt)
 logger_tortoise = logging.getLogger("tortoise")
 logger_tortoise.setLevel(logging.DEBUG)
 logger_tortoise.addHandler(sh)
+
 
 app = FastAPI(title='RestAPI-FastAPI')
 
