@@ -83,6 +83,6 @@ async def delete_category(category_id: int, token: str = Depends(oauth2_scheme))
         deleted_cat = await Category.filter(id=category_id).delete()
         if not deleted_cat:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Category {category_id} not found')
-        return Status(status_code=200, message=f'Category {category_id} deleted', details=None)
+        return Status(status_code=200, message=f'Category {category_id} deleted')
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='You have not enough permissions')

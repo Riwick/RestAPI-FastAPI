@@ -88,6 +88,6 @@ async def delete_example(example_id: int, token: str = Depends(oauth2_scheme)):
         deleted_count = await ExampleModel.filter(id=example_id).delete()
         if not deleted_count:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Example {example_id} not found')
-        return Status(message=f'Example {example_id} deleted', details=None)
+        return Status(message=f'Example {example_id} deleted')
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='You have not enough permissions')

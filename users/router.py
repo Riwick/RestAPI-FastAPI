@@ -7,10 +7,12 @@ from starlette import status
 from starlette.exceptions import HTTPException
 
 from examples.schemas import Status
+
 from users.auth import create_access_token, verify_token, pwd_context
-from users.schemas import UserCreateSchema, UserListSchema, UserUpdateSchema, UserLoginSchema
+from users.schemas import UserCreateSchema, UserListSchema, UserUpdateSchema, UserLoginSchema, UserProfileSchema
 from users.models import User
 from users.send_email import send_email
+from users.cache import cache
 
 users_router = APIRouter(prefix='/users', tags=['users'])
 
@@ -52,11 +54,20 @@ async def login_for_access_token(form_data: UserLoginSchema):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password")
 
 
-@users_router.get('/me', response_model=UserListSchema)
+@users_router.get('/me', response_model=UserProfileSchema)
 async def get_profile(token: str = Depends(oauth2_scheme)):
     payload = verify_token(token)
     if payload:
-        return await User.get(username=payload.get('sub'))
+        cached_user = await cache.get(f'user_profile_{payload.get('sub')}')
+        if cached_user:
+            return cached_user
+        user_obj = await User.filter(username=payload.get('sub')).first().values()
+        if user_obj:
+            await cache.set(f'user_profile_{payload.get('sub')}', user_obj)
+            return user_obj
+        else:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="It's looks like you are unauthorized")
     else:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
@@ -81,17 +92,34 @@ async def get_users(offset: int = Query(0, ge=0), limit: int = Query(10, ge=1),
 
 @users_router.get('/{user_id}', response_model=UserListSchema)
 async def get_user(user_id: int):
-    user_obj = await User.get(id=user_id)
-    return user_obj
+    cached_user = await cache.get(f'user_{user_id}')
+    if cached_user:
+        return cached_user
+    user_obj = await User.filter(id=user_id).first().values()
+    if user_obj:
+        await cache.set(f'user_{user_id}', user_obj)
+        return user_obj
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User {user_id} not found')
 
 
 @users_router.put('/{user_id}', response_model=UserListSchema)
 async def update_user(user_id: int, data: UserUpdateSchema, token: str = Depends(oauth2_scheme)):
     payload = verify_token(token)
-    user = await User.get(username=payload.get('sub'))
-    if user:
-        await User.filter(id=user_id).update(**data.model_dump())
-        return await User.get(id=user_id)
+    query_user = await User.filter(username=payload.get('sub')).first().only('is_superuser')
+    try:
+        assert query_user.is_superuser == True
+    except:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="It's looks like you are unauthorized")
+    user_obj = await User.get(id=user_id).only('username')
+    if query_user.is_superuser or user_obj.username == payload.get('sub'):
+        updated_count = await User.filter(id=user_id).update(**data.model_dump())
+        if updated_count:
+            updated_user = await User.get(id=user_id).values()
+            await cache.set(f'user_{user_id}', updated_user)
+            return updated_user
+        else:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User {user_id} not found')
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='You have not enough permissions')
 
@@ -99,11 +127,12 @@ async def update_user(user_id: int, data: UserUpdateSchema, token: str = Depends
 @users_router.delete('/{user_id}', response_model=Status)
 async def delete_user(user_id: int, token: str = Depends(oauth2_scheme)):
     payload = verify_token(token)
-    user = await User.get(username=payload.get('sub'))
+    user = await User.get(username=payload.get('sub')).only('is_superuser')
     if user.is_superuser:
         deleted_count = await User.filter(id=user_id).delete()
         if not deleted_count:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'User {user_id} not found')
-        return Status(message=f'User {user_id} deleted', details=None)
+        await cache.delete(f'user_{user_id}')
+        return Status(message=f'User {user_id} deleted')
     else:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='You have not enough permissions')

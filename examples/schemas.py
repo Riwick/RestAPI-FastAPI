@@ -22,5 +22,5 @@ class CreateExamplePydantic(BaseModel):
 
 class Status(BaseModel):
     status_code: int = 200
-    message: str or ListExamplePydantic or ListCategoryPydantic
+    message: str = None
     details: str = None
