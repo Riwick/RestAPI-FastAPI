@@ -1,6 +1,5 @@
 import pytest
 from asgi_lifespan import LifespanManager
-from fastapi import Query
 from httpx import AsyncClient, ASGITransport
 
 from examples.models import ExampleModel
@@ -82,14 +81,6 @@ async def test_get_examples(client: AsyncClient):
             "price": 2,
             "description": "string 1",
             "category_id": 1
-        },
-        {
-            "id": 15,
-            "title": "string",
-            "age": 1,
-            "price": 1,
-            "description": "string",
-            "category_id": 1
         }
     ]
 
@@ -119,14 +110,6 @@ async def test_filters(client: AsyncClient):
         "description": "string",
         "category_id": 1
     },
-        {
-            "id": 15,
-            "title": "string",
-            "age": 1,
-            "price": 1,
-            "description": "string",
-            "category_id": 1
-        }
     ]
     filter_response = await client.get('/examples/?offset=0&limit=10&order_by=id&title=string')
     assert filter_response.status_code == 200
@@ -138,14 +121,6 @@ async def test_filters(client: AsyncClient):
         "description": "string",
         "category_id": 1
     },
-        {
-            "id": 15,
-            "title": "string",
-            "age": 1,
-            "price": 1,
-            "description": "string",
-            "category_id": 1
-        }
     ]
 
 
@@ -161,14 +136,6 @@ async def test_ordering(client: AsyncClient):
         "description": "string",
         "category_id": 1
     },
-        {
-            "id": 15,
-            "title": "string",
-            "age": 1,
-            "price": 1,
-            "description": "string",
-            "category_id": 1
-        },
         {
             "id": 8,
             "title": "Example 1",
@@ -222,7 +189,7 @@ async def test_create_example(client: AsyncClient):
     assert get_user_jwt_token.status_code == 200
     user_jwt_token = get_user_jwt_token.json().get('access_token')
     user_jwt_type = get_user_jwt_token.json().get('token_type')
-    fail_response = await client.post(f'/examples/', json=example_data,
+    fail_response = await client.post('/examples/', json=example_data,
                                       headers={'Authorization': f'{user_jwt_type.capitalize()} {user_jwt_token}'})
     assert fail_response.status_code == 403
 
@@ -257,7 +224,7 @@ async def test_update_example(client: AsyncClient):
         "category_id": 1
     }
 
-    fail_response = await client.put(f'/examples/1', json=example_data,
+    fail_response = await client.put(f'/examples/-1', json=example_data,
                                      headers={'Authorization': f'{admin_jwt_type.capitalize()} {admin_jwt_token}'})
     assert fail_response.status_code == 404
 
@@ -294,7 +261,7 @@ async def test_delete_example(client: AsyncClient):
         "details": None
     }
 
-    fail_response = await client.delete(f'/examples/1',
+    fail_response = await client.delete(f'/examples/-1',
                                         headers={'Authorization': f'{admin_jwt_type.capitalize()} {admin_jwt_token}'})
     assert fail_response.status_code == 404
 
