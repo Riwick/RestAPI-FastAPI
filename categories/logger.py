@@ -1,6 +1,10 @@
 import logging
 import sys
 
+
+"""Конфигурация логгера"""
+
+
 category_logger = logging.Logger(name='example_logger')
 handler = logging.StreamHandler(sys.stdout)
 formatter = logging.Formatter(

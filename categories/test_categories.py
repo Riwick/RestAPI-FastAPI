@@ -6,6 +6,9 @@ from categories.models import Category
 from main import app
 
 
+"""Файл с тестами"""
+
+
 @pytest.fixture(scope="module")
 def anyio_backend():
     return "asyncio"
