@@ -6,6 +6,9 @@ from main import app
 from users.models import User
 
 
+"""Файл с тестами"""
+
+
 @pytest.fixture(scope="module")
 def anyio_backend():
     return "asyncio"

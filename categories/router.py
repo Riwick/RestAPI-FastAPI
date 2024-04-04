@@ -23,7 +23,7 @@ async def get_categories(offset: int = Query(0), limit: int = Query(10),
                          order_by: str = Query('id'),
                          title: str = Query(None), cat_id: int = Query(None)):
 
-    """Эта функция выводит все доступные категории по 10 штук(можно задать своё значение, изменив limit)
+    """Эта функция выводит все категории по 10 штук(можно задать своё значение, изменив limit)
         в формате:
         [
             {
@@ -34,6 +34,10 @@ async def get_categories(offset: int = Query(0), limit: int = Query(10),
         Она поддерживает пагинацию через offset и limit, сортировку через order_by(по умолчанию стоит сортировка по id)
         и фильтры. Они идут после order_by в параметрах функции и представляют собой query-запросы.
         В случае если нет ни одного объекта, выводится пустой список []"""
+
+    cached_categories = await cache.get('categories')  # Пытаемся взять данные из кеша
+    if cached_categories:
+        return cached_categories
 
     filters = {}
     if title:
@@ -61,7 +65,8 @@ async def get_category(category_id: int):
         {
             "id": 0,
             "title": "string"
-        }"""
+        }
+        Если категория не существует, пробрасывается ошибка 404"""
 
     cached_obj = await cache.get(f'category_{category_id}')  # Попытка получения кеша
     if cached_obj:
@@ -69,7 +74,9 @@ async def get_category(category_id: int):
 
     category_obj = await Category.filter(id=category_id).first().values()  # Получение объекта
     if category_obj:
-        await cache.set(f'category_{category_id}', category_obj)  # Сохранение в кеш
+        """В случае если категория найдена"""
+        if not cached_obj:
+            await cache.set(f'category_{category_id}', category_obj)  # Сохранение в кеш, если его нету
         return category_obj
     else:
         """В случае если категория не найдена пробрасывается 404 ошибка"""
@@ -94,7 +101,7 @@ async def create_category(data: CreateCategoryPydantic, token: str = Depends(oau
     if user.is_superuser:
 
         cat_obj = await Category.create(**data.model_dump())  # Создаём объект
-        await cache.delete('examples')   # Удаляем кеш, который создавали в функции get_examples для его обновления
+        await cache.delete('categories')   # Удаляем кеш, который создавали в функции get_categories для его обновления
         return cat_obj
     else:
         """Если пользователь не является супер юзером, то пробрасывается ошибка 403"""
@@ -122,9 +129,14 @@ async def update_category(category_id: int, data: CreateCategoryPydantic, token:
         if cat_obj:  # int
             """Если объект обновлен, то мы берем его из БД, сохраняем в кеш и отдаем пользователю"""
             cat_obj = await Category.filter(id=category_id).first().values()
-            await cache.set(f'category_{category_id}', cat_obj, ttl=60)
-            await cache.delete('examples')  # Удаляем кеш, который создавали в функции get_examples для его обновления
 
+            cached_obj = await cache.get(f'category_{category_id}')  # Получаем кеш и удаляем его, если он есть
+            if cached_obj:
+                await cache.delete(f'category_{category_id}')
+            await cache.delete('categories')  # Удаляем кеш, который создавали в функции get_categories для его
+            # обновления
+
+            """Если объект был обновлен, то возвращаем ответ"""
             return cat_obj
         else:
             """Если объект не был обновлен, то пробрасываем ошибку 404"""
@@ -152,19 +164,18 @@ async def delete_category(category_id: int, token: str = Depends(oauth2_scheme))
     user = await User.get(username=payload.get('sub'))   # Получаем юзера из БД
     if user.is_superuser:
 
-        cached_example = cache.get(f'category_{category_id}')  # Получаем кеш и удаляем его, если он есть
-        if cached_example:
-            await cache.delete(f'category_{category_id}')
-
         deleted_cat = await Category.filter(id=category_id).delete()
         if not deleted_cat:
             """Если объект не был удален, то пробрасываем ошибку 404"""
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Category {category_id} not found')
 
-        """Если объект был удален, то возвращаем ответ"""
-        await cache.delete('examples')  # Удаляем кеш, который создавали в функции get_examples для его обновления
-        return Status(status_code=200, message=f'Category {category_id} deleted')
+        cached_example = cache.get(f'category_{category_id}')  # Получаем кеш и удаляем его, если он есть
+        if cached_example:
+            await cache.delete(f'category_{category_id}')
+        await cache.delete('categories')  # Удаляем кеш, который создавали в функции get_categories для его обновления
 
+        """Если объект был удален, то возвращаем ответ"""
+        return Status(status_code=200, message=f'Category {category_id} deleted')
     else:
         """Если пользователь не является супер юзером, то пробрасываем ошибку 403"""
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='You have not enough permissions')

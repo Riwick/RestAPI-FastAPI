@@ -79,7 +79,8 @@ async def get_example(example_id: int):
         "price": 0,
         "description": "string",
         "category_id": 0
-    }"""
+    }
+    Если объект не существует, пробрасывается ошибка 404"""
 
     cached_item = await cache.get(f'example_{example_id}')  # Попытка получения кеша
     if cached_item:
@@ -87,7 +88,8 @@ async def get_example(example_id: int):
 
     example_obj = await ExampleModel.filter(id=example_id).first().values()  # Получение объекта
     if example_obj:
-        await cache.set(f'example_{example_id}', example_obj)  # Сохранение в кеш
+        if not cached_item:
+            await cache.set(f'example_{example_id}', example_obj)  # Сохранение в кеш, если его нету
         return example_obj
     else:
         """В случае если объект не найден пробрасывается 404 ошибка"""
@@ -148,7 +150,9 @@ async def update_example(example_id: int, data: CreateExamplePydantic, token: st
             """Если объект обновлен, то мы берем его из БД, сохраняем в кеш и отдаем пользователю"""
             example_obj = await ExampleModel.filter(id=example_id).first().values()
 
-            await cache.set(f'example_{example_id}', example_obj)
+            cached_example = cache.get(f'example_{example_id}')  # Получаем кеш и удаляем его, если он есть
+            if cached_example:
+                await cache.delete(f'example_{example_id}')  # Удаляем кеш самого объекта
             await cache.delete('examples')  # Удаляем кеш, который создавали в функции get_examples для его обновления
 
             return example_obj
@@ -178,17 +182,17 @@ async def delete_example(example_id: int, token: str = Depends(oauth2_scheme)):
     user = await User.get(username=payload.get('sub'))  # Получаем юзера из БД
     if user.is_superuser:
 
-        cached_example = cache.get(f'example_{example_id}')  # Получаем кеш и удаляем его, если он есть
-        if cached_example:
-            await cache.delete(f'example_{example_id}')  # Удаляем кеш самого объекта
-
         deleted_count = await ExampleModel.filter(id=example_id).delete()  # Пытаемся удалить объект
         if not deleted_count:
             """Если объект не был удален, то пробрасываем ошибку 404"""
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f'Example {example_id} not found')
 
-        """Если объект был удален, то возвращаем ответ"""
+        cached_example = cache.get(f'example_{example_id}')  # Получаем кеш и удаляем его, если он есть
+        if cached_example:
+            await cache.delete(f'example_{example_id}')  # Удаляем кеш самого объекта
         await cache.delete('examples')  # Удаляем кеш, который создавали в функции get_examples для его обновления
+
+        """Если объект был удален, то возвращаем ответ"""
         return Status(message=f'Example {example_id} deleted')
     else:
         """Если пользователь не является супер юзером, то пробрасываем ошибку 403"""
