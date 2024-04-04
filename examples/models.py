@@ -4,6 +4,9 @@ from tortoise.validators import MinValueValidator
 from categories.models import Category
 
 
+"""Файл с моделями для базы данных"""
+
+
 class ExampleModel(models.Model):
     id = fields.IntField(pk=True)
     title = fields.CharField(max_length=255, null=False)

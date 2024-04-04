@@ -9,6 +9,8 @@ from categories.router import category_router
 from users.router import users_router
 
 
+"""Конфигурация логгера для TortoiseORM для вывода в консоль запросов в БД"""
+
 fmt = logging.Formatter(
     fmt="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
@@ -23,6 +25,8 @@ logger_tortoise.addHandler(sh)
 
 app = FastAPI(title='RestAPI-FastAPI')
 
+"""Подключение роутеров"""
+
 main_router = APIRouter(prefix='/api/v1', tags=[])
 
 main_router.include_router(example_model_router)
@@ -32,12 +36,15 @@ main_router.include_router(users_router)
 
 @main_router.get('/')
 async def home_page():
+    """Тестовая функция"""
     return 'Hello world!'
 
 
+"""Включение всех роутеров в приложение"""
 app.include_router(main_router)
 
 
+"""Конфигурация TortoiseORM для postgresql"""
 register_tortoise(
     app=app,
     config={
@@ -65,6 +72,6 @@ register_tortoise(
     add_exception_handlers=True,
 )
 
-
+"""Точка запуска приложения"""
 if __name__ == '__main__':
     uvicorn.run(app='main:app', host='localhost', port=10000, reload=True)

@@ -1,9 +1,8 @@
 from pydantic import BaseModel, Field
 
-from categories.schemas import ListCategoryPydantic
-
 
 class ListExamplePydantic(BaseModel):
+    """Схема по которой выводятся объекты класса Example """
     id: int
     title: str = Field(max_length=255)
     age: int
@@ -13,6 +12,7 @@ class ListExamplePydantic(BaseModel):
 
 
 class CreateExamplePydantic(BaseModel):
+    """Схема по которой создаются объекты класса Example"""
     title: str
     age: int = Field(gt=0)
     price: float = Field(gt=0)
@@ -21,6 +21,7 @@ class CreateExamplePydantic(BaseModel):
 
 
 class Status(BaseModel):
+    """Схема ответа после успешного удаления объекта класса Example"""
     status_code: int = 200
     message: str = None
     details: str = None
