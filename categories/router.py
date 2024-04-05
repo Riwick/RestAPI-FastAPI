@@ -48,12 +48,12 @@ async def get_categories(offset: int = Query(0), limit: int = Query(10),
     if filters:
         """Получение результата с фильтрами через распаковку словаря **filters"""
         categories = await Category.filter(**filters).offset(offset).limit(limit).all().order_by(order_by).values()
-        await cache.set('categories')  # Запись результата в кеш
+        await cache.set('categories', categories)  # Запись результата в кеш
 
     else:
         """Получение результата без фильтров"""
         categories = await Category.filter().offset(offset).limit(limit).all().order_by(order_by).values()
-        await cache.set('categories')  # Запись результата в кеш
+        await cache.set('categories', categories)  # Запись результата в кеш
 
     return categories
 

@@ -10,7 +10,6 @@ from users.router import users_router
 
 
 """Конфигурация логгера для TortoiseORM для вывода в консоль запросов в БД"""
-
 fmt = logging.Formatter(
     fmt="%(asctime)s - %(name)s:%(lineno)d - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
@@ -26,7 +25,6 @@ logger_tortoise.addHandler(sh)
 app = FastAPI(title='RestAPI-FastAPI')
 
 """Подключение роутеров"""
-
 main_router = APIRouter(prefix='/api/v1', tags=[])
 
 main_router.include_router(example_model_router)
@@ -59,7 +57,7 @@ register_tortoise(
                     'database': 'postgres',
                 }
             },
-            'default': 'postgres://postgres:postgres@localhost:10001/postgres'
+            'default': 'postgres://postgres:postgres@database:10001/postgres'
         },
         'apps': {
             'models': {
@@ -71,7 +69,3 @@ register_tortoise(
     generate_schemas=True,
     add_exception_handlers=True,
 )
-
-"""Точка запуска приложения"""
-if __name__ == '__main__':
-    uvicorn.run(app='main:app', host='localhost', port=10000, reload=True)

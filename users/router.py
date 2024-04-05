@@ -41,6 +41,7 @@ async def register(data: UserCreateSchema, background_tasks: BackgroundTasks):
     if user:
         """Если пользователь был успешно создан, то создается таска на отправку ему email и возвращаются его данные"""
         background_tasks.add_task(send_email, data.email, user.confirm_code)
+        await cache.delete('users')
         return user
     else:
         """Если что-то пошло не так"""

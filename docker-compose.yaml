@@ -1,11 +1,38 @@
 version: "3.7"
 services:
+
   database:
     image: postgres:16.1-alpine
     container_name: RestAPI-FastAPI-DB
+    command: -p 10001
+    expose:
+      - 10001
     ports:
-      - "10001:5432"
+      - "10001:10001"
     environment:
       - POSTGRES_DB=postgres
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
+
+  redis:
+    image: redis:7.2.4-alpine
+    hostname: redis
+    container_name: RestAPI-FastAPI-Redis
+
+  app:
+    build:
+      context: .
+    container_name: RestAPI-FastAPI-App
+    volumes:
+      - ./:/RestAPI
+    ports:
+      - "10000:8000"
+    command: gunicorn main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind=0.0.0.0:8000
+    environment:
+      - DB_HOST=database
+      - DB_NAME=postgres
+      - DB_USER=postgres
+      - DB_PASS=postgres
+    depends_on:
+      - database
+      - redis
